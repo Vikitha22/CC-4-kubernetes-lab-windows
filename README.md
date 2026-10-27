@@ -1,250 +1,229 @@
-\# Kubernetes Lab on Windows
+# Kubernetes Cluster Management: Deployment, Scaling & Self-Healing
 
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)
+![kind](https://img.shields.io/badge/kind-local%20cluster-blue)
+![Docker](https://img.shields.io/badge/Docker%20Desktop-2496ED?logo=docker&logoColor=white)
+![NGINX](https://img.shields.io/badge/NGINX-009639?logo=nginx&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows%2011-0078D6?logo=windows&logoColor=white)
 
+A hands-on Kubernetes lab demonstrating multi-node cluster provisioning, application deployment, replica scaling, and automated Pod recovery, built with **kind, Docker Desktop, Kubernetes, and NGINX** on Windows.
 
-\## Cluster Deployment, Scaling and Self-Healing
+## Table of Contents
 
+- [Overview](#overview)
+- [Objectives](#objectives)
+- [Technology Stack](#technology-stack)
+- [Cluster Architecture](#cluster-architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Implementation and Validation](#implementation-and-validation)
+- [Results Summary](#results-summary)
+- [How Self-Healing Works](#how-self-healing-works)
+- [Cleanup](#cleanup)
+- [Repository Structure](#repository-structure)
+- [Key Learnings](#key-learnings)
+- [Conclusion](#conclusion)
+- [Future Enhancements](#future-enhancements)
 
+## Overview
 
-\## 1. Project Overview
+This project explores core container orchestration concepts using a local three-node Kubernetes cluster. An NGINX application is deployed through a Kubernetes Deployment, scaled to different replica counts, and tested under a simulated Pod failure.
 
+The lab shows how Kubernetes controllers continuously reconcile the **actual** cluster state with the **desired** configuration to maintain application availability.
 
+## Objectives
 
-This project demonstrates fundamental Kubernetes operations using a local multi-node cluster on Windows. The experiment uses kind (Kubernetes in Docker), Docker Desktop, `kubectl`, and NGINX to explore application deployment, replica scaling, and Pod replacement.
+- Provision a local Kubernetes cluster with one control-plane node and two worker nodes.
+- Deploy and manage an NGINX application using a Deployment.
+- Inspect Pod readiness, status, and node placement.
+- Scale application replicas from three to six.
+- Simulate a Pod failure by manually deleting a running Pod.
+- Verify that the desired replica count is restored automatically.
 
+## Technology Stack
 
+| Technology | Purpose |
+|---|---|
+| Windows 11 | Host environment |
+| Docker Desktop | Container runtime environment |
+| kind | Local multi-node Kubernetes cluster |
+| Kubernetes | Container orchestration |
+| `kubectl` | Cluster and workload management |
+| NGINX | Sample web application |
+| Git and GitHub | Version control and project hosting |
 
-\## 2. Objectives
-
-
-
-\- Set up a local Kubernetes cluster with three nodes.
-
-\- Deploy an NGINX application using a Deployment.
-
-\- Monitor Pod status and node placement.
-
-\- Scale the application from three replicas to six replicas.
-
-\- Delete a Pod and observe Kubernetes replacement behavior.
-
-\- Record the results and investigate any failures.
-
-
-
-\## 3. Technologies Used
-
-
-
-\- \*\*Operating System:\*\* Windows 11
-
-\- \*\*Container Runtime:\*\* Docker Desktop
-
-\- \*\*Cluster Tool:\*\* kind
-
-\- \*\*Command-Line Tool:\*\* kubectl
-
-\- \*\*Application:\*\* NGINX
-
-\- \*\*Version Control:\*\* Git and GitHub
-
-
-
-\## 4. Cluster Architecture
-
-
-
-The cluster consists of one control-plane node and two worker nodes.
-
-
+## Cluster Architecture
 
 | Node | Role |
-
 |---|---|
+| `kind-control-plane` | Cluster management and scheduling |
+| `kind-worker` | Application workload execution |
+| `kind-worker2` | Application workload execution |
 
-| kind-control-plane | Control plane |
+The cluster topology is defined in [`kind-config.yaml`](kind-config.yaml).
 
-| kind-worker | Worker node |
+## Prerequisites
 
-| kind-worker2 | Worker node |
+- Windows 11 with Docker Desktop installed and running
+- [kind](https://kind.sigs.k8s.io/) installed and available in `PATH`
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) installed and available in `PATH`
+- PowerShell or Windows Terminal
 
-
-
-The cluster configuration is stored in `kind-config.yaml`.
-
-
-
-\## 5. Experiments Performed
-
-
-
-\### Experiment 1: Cluster Creation
-
-
-
-Created a three-node Kubernetes cluster using the kind configuration file.
-
-
+Verify the tools are available:
 
 ```powershell
+docker --version
+kind --version
+kubectl version --client
+```
 
+## Quick Start
+
+```powershell
+# Clone the repository
+git clone <repository-url>
+cd CC-4-kubernetes-lab-windows
+
+# Create the cluster
 kind create cluster --config kind-config.yaml
 
-kubectl get nodes
-
-```
-
-
-
-\### Experiment 2: NGINX Deployment
-
-
-
-Deployed NGINX with three replicas.
-
-
-
-```powershell
-
+# Deploy NGINX
 kubectl create deployment web --image=nginx --replicas=3
+```
 
+## Implementation and Validation
+
+### 1. Cluster Provisioning
+
+Create the cluster from the kind configuration:
+
+```powershell
+kind create cluster --config kind-config.yaml
+```
+
+Validate connectivity and node readiness:
+
+```powershell
+kubectl cluster-info
+kubectl get nodes -o wide
+```
+
+**Result:** All three nodes reached the `Ready` state.
+
+![Cluster nodes](screenshots/01-cluster-nodes.png)
+
+### 2. NGINX Deployment
+
+Create a Deployment with three replicas:
+
+```powershell
+kubectl create deployment web --image=nginx --replicas=3
+```
+
+Inspect the Deployment and Pods:
+
+```powershell
 kubectl get deployments
-
 kubectl get pods -o wide
-
 ```
 
+**Result:** All three Pods reached `Running` with readiness `1/1`.
 
+![NGINX with 3 replicas](screenshots/02-nginx-3-replicas.png)
 
-\*\*Result:\*\* All three Pods reached the Running state.
+### 3. Replica Scaling
 
-
-
-\### Experiment 3: Scaling
-
-
-
-Scaled the deployment from three replicas to six.
-
-
+Scale the Deployment from three to six replicas:
 
 ```powershell
-
 kubectl scale deployment web --replicas=6
-
-kubectl get pods -o wide
-
 ```
 
-
-
-\*\*Result:\*\* All six Pods reached Running with readiness status `1/1`.
-
-
-
-\### Experiment 4: Pod Deletion and Replacement
-
-
-
-Deleted one Pod to observe Kubernetes reconciliation.
-
-
+Verify the new replica count:
 
 ```powershell
-
-kubectl delete pod <pod-name>
-
+kubectl get deployments
 kubectl get pods -o wide
-
 ```
 
+**Result:** The Deployment reached `6/6` available replicas, with all six Pods running.
 
+![NGINX with 6 replicas](screenshots/03-nginx-6-replicas.png)
 
-Replace `<pod-name>` with the actual Pod name.
+### 4. Pod Deletion and Self-Healing
 
+Delete one running Pod to simulate an individual Pod failure:
 
+```powershell
+kubectl delete pod <pod-name>
+```
 
-\*\*Result:\*\* Kubernetes created a replacement Pod. However, the replacement encountered `ImagePullBackOff`. Full recovery remains to be verified after troubleshooting the image-pull issue.
+> Replace `<pod-name>` with the name of a Pod belonging to the `web` Deployment.
 
+Monitor the replacement process:
 
+```powershell
+kubectl get pods -o wide
+kubectl get deployments
+```
 
-\## 6. Useful Verification Commands
+**Result:** Kubernetes created a replacement Pod, which reached `Running` with readiness `1/1`. The Deployment returned to `6/6` available replicas.
 
+![Pod self-healing](screenshots/04-pod-self-healing.png)
 
+## Results Summary
 
-| Command | Purpose |
-
+| Test | Verified Outcome |
 |---|---|
-
-| `kubectl get nodes` | Check node status |
-
-| `kubectl get pods -o wide` | Inspect Pod status and placement |
-
-| `kubectl get deployments` | Check deployment replicas |
-
-| `kubectl describe pod <pod-name>` | Investigate Pod details and events |
-
-| `kubectl get events --sort-by=.metadata.creationTimestamp` | Inspect recent events |
-
-
-
-\## 7. Results Summary
-
-
-
-| Test | Observation |
-
-|---|---|
-
-| Three-node cluster | Created successfully |
-
-| Three NGINX replicas | All running |
-
-| Six NGINX replicas | All running |
-
-| Pod deletion | Completed |
-
+| Cluster provisioning | 3 nodes in `Ready` state |
+| Initial deployment | 3/3 replicas available |
+| Replica scaling | 6/6 replicas available |
+| Manual Pod deletion | Completed successfully |
 | Replacement Pod creation | Observed |
+| Recovery verification | 6/6 replicas available |
 
-| Complete self-healing recovery | Pending investigation |
+## How Self-Healing Works
 
+A Deployment manages a ReplicaSet, which continuously compares the number of running Pods against the desired replica count. When a Pod is deleted, the ReplicaSet controller detects the gap and schedules a replacement Pod, restoring the desired state without manual intervention.
 
+## Cleanup
 
-\## 8. Project Structure
+Remove the Deployment and delete the cluster when finished:
 
+```powershell
+kubectl delete deployment web
+kind delete cluster
+```
 
+## Repository Structure
 
 ```text
-
-k8s-lab/
-
+CC-4-kubernetes-lab-windows/
 ├── kind-config.yaml
-
-└── README.md
-
+├── README.md
+└── screenshots/
+    ├── 01-cluster-nodes.png
+    ├── 02-nginx-3-replicas.png
+    ├── 03-nginx-6-replicas.png
+    └── 04-pod-self-healing.png
 ```
 
+## Key Learnings
 
+- Provisioning and validating a multi-node Kubernetes cluster.
+- Managing containerized applications through Deployments.
+- Understanding desired replica counts and scaling operations.
+- Inspecting workload placement across worker nodes.
+- Understanding Kubernetes reconciliation and replacement Pod creation.
+- Validating recovery using Pod readiness and Deployment availability.
 
-\## 9. Future Improvements
+## Conclusion
 
+This project demonstrates fundamental Kubernetes orchestration capabilities in a local development environment. Through cluster provisioning, NGINX deployment, replica scaling, and Pod deletion, the lab shows how Kubernetes manages application workloads and restores the desired replica count after a Pod is removed.
 
+## Future Enhancements
 
-\- Resolve the replacement Pod's `ImagePullBackOff` error.
-
-\- Verify that the replacement Pod reaches Running.
-
-\- Add screenshots documenting each experiment.
-
-\- Explore rolling updates and additional recovery scenarios.
-
-
-
-\## 10. Conclusion
-
-
-
-This experiment demonstrates Kubernetes cluster setup, application deployment, scaling, and replacement Pod creation. It also highlights the importance of investigating image-pull errors when validating application recovery.
-
-
-
+- Expose NGINX through a Kubernetes Service.
+- Implement rolling updates and image-version changes.
+- Evaluate behavior during worker-node unavailability.
+- Manage the application with declarative Kubernetes manifests.
